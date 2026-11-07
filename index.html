@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Reach</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<style>
+  html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; }
+  #map { position: absolute; inset: 0; }
+  #bar { position: absolute; z-index: 1000; left: 10px; right: 10px; bottom: 14px;
+         background: #fff; border-radius: 12px; padding: 10px 12px;
+         box-shadow: 0 2px 10px rgba(0,0,0,.2); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  button { border: 1px solid #ccc; background: #fff; border-radius: 8px; padding: 8px 12px; font-size: 15px; }
+  button.on { background: #000; color: #fff; border-color: #000; }
+  #status { flex: 1 1 100%; font-size: 13px; color: #444; min-height: 16px; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="bar">
+  <button data-min="5" class="on">5 dəq</button>
+  <button data-min="10">10 dəq</button>
+  <button data-min="15">15 dəq</button>
+  <button id="loc">Mənim yerim</button>
+  <div id="status">Xəritəyə toxun və ya "Mənim yerim" düyməsini bas.</div>
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+// CORE START
+const WALK_MS = 1.34; // metres per second, about 4.8 km/h
+
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000, r = Math.PI / 180;
+  const dLat = (lat2 - lat1) * r, dLon = (lon2 - lon1) * r;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function buildGraph(elements) {
+  const index = new Map(), lat = [], lon = [], adj = [];
+  const nodeId = (p) => {
+    const key = p.lat.toFixed(7) + "," + p.lon.toFixed(7);
+    let i = index.get(key);
+    if (i === undefined) {
+      i = lat.length; index.set(key, i);
+      lat.push(p.lat); lon.push(p.lon); adj.push([]);
+    }
+    return i;
+  };
+  for (const el of elements) {
+    if (el.type !== "way" || !el.geometry) continue;
+    let prev = null;
+    for (const p of el.geometry) {
+      const cur = nodeId(p);
+      if (prev !== null && prev !== cur) {
+        const w = haversine(lat[prev], lon[prev], lat[cur], lon[cur]);
+        adj[prev].push([cur, w]);
+        adj[cur].push([prev, w]);
+      }
+      prev = cur;
+    }
+  }
+  return { lat, lon, adj };
+}
+
+function nearestNode(g, la, lo) {
+  let best = -1, bd = Infinity;
+  for (let i = 0; i < g.lat.length; i++) {
+    const d = haversine(la, lo, g.lat[i], g.lon[i]);
+    if (d < bd) { bd = d; best = i; }
+  }
+  return { node: best, dist: bd };
+}
+
+function dijkstra(g, src, limit) {
+  const dist = new Float64Array(g.lat.length).fill(Infinity);
+  dist[src] = 0;
+  const heap = [[0, src]];
+  const push = (x) => {
+    heap.push(x);
+    let i = heap.length - 1;
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (heap[p][0] <= heap[i][0]) break;
+      [heap[p], heap[i]] = [heap[i], heap[p]]; i = p;
+    }
+  };
+  const pop = () => {
+    const top = heap[0], last = heap.pop();
+    if (heap.length) {
+      heap[0] = last;
+      let i = 0;
+      for (;;) {
+        let l = 2 * i + 1, r = l + 1, m = i;
+        if (l < heap.length && heap[l][0] < heap[m][0]) m = l;
+        if (r < heap.length && heap[r][0] < heap[m][0]) m = r;
+        if (m === i) break;
+        [heap[m], heap[i]] = [heap[i], heap[m]]; i = m;
+      }
+    }
+    return top;
+  };
+  while (heap.length) {
+    const [d, u] = pop();
+    if (d > dist[u]) continue;
+    if (d > limit) break;
+    for (const [v, w] of g.adj[u]) {
+      const nd = d + w;
+      if (nd < dist[v] && nd <= limit) { dist[v] = nd; push([nd, v]); }
+    }
+  }
+  return dist;
+}
+
+// Returns line segments [[lat,lon],[lat,lon]] clipped at `limit` metres, and their total length.
+function reachableSegments(g, dist, limit) {
+  const segs = [];
+  let total = 0;
+  for (let a = 0; a < g.adj.length; a++) {
+    for (const [b, w] of g.adj[a]) {
+      if (a > b) continue;
+      const da = dist[a], db = dist[b];
+      const A = [g.lat[a], g.lon[a]], B = [g.lat[b], g.lon[b]];
+      if (da <= limit && db <= limit) {
+        segs.push([A, B]); total += w;
+      } else if (da <= limit || db <= limit) {
+        const [P, Q, dp] = da <= limit ? [A, B, da] : [B, A, db];
+        const f = Math.min(1, Math.max(0, (limit - dp) / w));
+        if (f > 0) {
+          segs.push([P, [P[0] + (Q[0] - P[0]) * f, P[1] + (Q[1] - P[1]) * f]]);
+          total += w * f;
+        }
+      }
+    }
+  }
+  return { segs, total };
+}
+// CORE END
+
+// ---------- UI ----------
+const OVERPASS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+];
+
+async function fetchWays(lat, lon, radius) {
+  const q = `[out:json][timeout:25];
+way["highway"]["highway"!~"motorway|motorway_link|trunk|trunk_link|construction|proposed|raceway|bus_guideway"]
+["foot"!="no"]["access"!~"private|no"](around:${radius},${lat},${lon});
+out geom;`;
+  let lastErr;
+  for (const url of OVERPASS) {
+    try {
+      const r = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(q) });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return (await r.json()).elements;
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr;
+}
+
+const map = new maplibregl.Map({
+  container: "map",
+  style: "https://tiles.openfreemap.org/styles/positron",
+  center: [49.8671, 40.4093], // [lon, lat]
+  zoom: 15,
+});
+const emptyGeo = { type: "FeatureCollection", features: [] };
+map.on("load", () => {
+  map.addSource("reach", { type: "geojson", data: emptyGeo });
+  map.addLayer({
+    id: "reach-lines", type: "line", source: "reach",
+    paint: { "line-color": "#000", "line-width": 2.2, "line-opacity": 0.9 },
+    layout: { "line-cap": "round", "line-join": "round" },
+  });
+});
+
+let minutes = 5, start = null, startMarker = null, busy = false;
+const statusEl = document.getElementById("status");
+
+function showLines(segs) {
+  const coords = segs.map(([a, b]) => [[a[1], a[0]], [b[1], b[0]]]); // lat,lon -> lon,lat
+  map.getSource("reach").setData({
+    type: "Feature", properties: {}, geometry: { type: "MultiLineString", coordinates: coords },
+  });
+  if (!coords.length) return;
+  const b = new maplibregl.LngLatBounds();
+  for (const c of coords) { b.extend(c[0]); b.extend(c[1]); }
+  map.fitBounds(b, { padding: { top: 40, left: 40, right: 40, bottom: 140 }, maxZoom: 17, duration: 500 });
+}
+
+async function run(lat, lon) {
+  if (busy) return;
+  busy = true; start = [lat, lon];
+  if (startMarker) startMarker.remove();
+  const dot = document.createElement("div");
+  dot.style.cssText = "width:14px;height:14px;border-radius:50%;background:#fff;border:3px solid #000";
+  startMarker = new maplibregl.Marker({ element: dot }).setLngLat([lon, lat]).addTo(map);
+  const limit = minutes * 60 * WALK_MS;
+  try {
+    statusEl.textContent = "Küçələr yüklənir…";
+    const t0 = performance.now();
+    const els = await fetchWays(lat, lon, Math.round(limit + 80));
+    const g = buildGraph(els);
+    const s = nearestNode(g, lat, lon);
+    if (s.node < 0) throw new Error("Burada küçə tapılmadı");
+    const dist = dijkstra(g, s.node, limit);
+    const { segs, total } = reachableSegments(g, dist, limit);
+    showLines(segs);
+    const ms = Math.round(performance.now() - t0);
+    statusEl.textContent = `${minutes} dəq: ${(total / 1000).toFixed(2)} km küçə, ${g.lat.length} düyün, ${ms} ms`;
+  } catch (e) {
+    statusEl.textContent = "Xəta: " + e.message;
+  } finally { busy = false; }
+}
+
+map.on("click", (e) => run(e.lngLat.lat, e.lngLat.lng));
+
+document.querySelectorAll("button[data-min]").forEach((b) => {
+  b.onclick = () => {
+    document.querySelectorAll("button[data-min]").forEach((x) => x.classList.remove("on"));
+    b.classList.add("on"); minutes = +b.dataset.min;
+    if (start) run(start[0], start[1]);
+  };
+});
+
+function locate() {
+  if (!navigator.geolocation) { statusEl.textContent = "Brauzer lokasiyanı dəstəkləmir. Xəritəyə toxun."; return; }
+  statusEl.textContent = "Lokasiya axtarılır…";
+  navigator.geolocation.getCurrentPosition(
+    (p) => { map.jumpTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 16 }); run(p.coords.latitude, p.coords.longitude); },
+    () => { statusEl.textContent = "Lokasiya icazəsi yoxdur (HTTPS lazımdır). Xəritəyə toxun."; },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+document.getElementById("loc").onclick = locate;
+</script>
+</body>
+</html>
