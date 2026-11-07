@@ -286,7 +286,7 @@ map.on("load", () => {
   });
 });
 
-let minutes = 5, start = null, startMarker = null, busy = false;
+let minutes = 5, start = null, startMarker = null, busy = false, cache = null, data = null;
 const statusEl = document.getElementById("status");
 
 function showLines(segs) {
@@ -338,10 +338,18 @@ async function run(lat, lon) {
     statusEl.textContent = "Küçələr və yerlər yüklənir…";
     const t0 = performance.now();
     const radius = Math.round(limit + 80);
-    const [els, poiEls] = await Promise.all([
-      fetchWays(lat, lon, radius),
-      fetchPois(lat, lon, radius).catch(() => null),
-    ]);
+    const fromCache = !!(cache && cache.lat === lat && cache.lon === lon && cache.radius >= radius);
+    const tNet = performance.now();
+    if (!fromCache) {
+      const [els0, poi0] = await Promise.all([
+        fetchWays(lat, lon, radius),
+        fetchPois(lat, lon, radius).catch(() => null),
+      ]);
+      cache = poi0 ? { lat, lon, radius, els: els0, poiEls: poi0 } : null;
+      data = { els: els0, poiEls: poi0 };
+    } else data = cache;
+    const netMs = Math.round(performance.now() - tNet);
+    const { els, poiEls } = data;
     const g = buildGraph(els);
     const s = nearestNode(g, lat, lon);
     if (s.node < 0) throw new Error("Burada küçə tapılmadı");
@@ -350,9 +358,10 @@ async function run(lat, lon) {
     ranked = poiEls ? rankPois(poiEls, g, dist, limit) : [];
     renderPois();
     showLines(segs);
-    const ms = Math.round(performance.now() - t0);
+    const calcMs = Math.round(performance.now() - t0) - netMs;
     statusEl.textContent = `${minutes} dəq: ${(total / 1000).toFixed(2)} km küçə, ` +
-      (poiEls ? `${ranked.length} yer, ` : "yerlər yüklənmədi, ") + `${ms} ms`;
+      (poiEls ? `${ranked.length} yer, ` : "yerlər yüklənmədi, ") +
+      `şəbəkə ${fromCache ? "keşdən 0" : netMs} ms, hesab ${calcMs} ms`;
   } catch (e) {
     statusEl.textContent = "Xəta: " + e.message;
   } finally { busy = false; }
