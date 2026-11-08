@@ -85,6 +85,18 @@ function buildGraph(elements) {
   return { lat, lon, adj };
 }
 
+// Graph from the compact baku.json written by prepare_baku.py: {lat[], lon[], edges[a,b,a,b,...]}
+function graphFromData(d) {
+  const adj = Array.from({ length: d.lat.length }, () => []);
+  for (let i = 0; i < d.edges.length; i += 2) {
+    const a = d.edges[i], b = d.edges[i + 1];
+    const w = haversine(d.lat[a], d.lon[a], d.lat[b], d.lon[b]);
+    adj[a].push([b, w]);
+    adj[b].push([a, w]);
+  }
+  return { lat: d.lat, lon: d.lon, adj };
+}
+
 function nearestNode(g, la, lo) {
   let best = -1, bd = Infinity;
   for (let i = 0; i < g.lat.length; i++) {
@@ -194,6 +206,9 @@ const scoreOf = (n, tMin) => (1 + n) / (1 + tMin / 5);
 function rankPois(elements, g, dist, limit, maxSnap = 200) {
   const out = [];
   const keptByKey = new Map();
+  // Only nodes the walker can actually reach are candidates, so a big city graph stays fast.
+  const reached = [];
+  for (let i = 0; i < dist.length; i++) if (dist[i] <= limit) reached.push(i);
   for (const el of elements) {
     const t = el.tags || {};
     const name = t["name:az"] || t.name || t["name:en"];
@@ -203,7 +218,7 @@ function rankPois(elements, g, dist, limit, maxSnap = 200) {
     if (!p) continue;
     const cosLat = Math.cos(p.lat * Math.PI / 180);
     let best = -1, bd = Infinity;
-    for (let i = 0; i < g.lat.length; i++) {
+    for (const i of reached) {
       const dy = (g.lat[i] - p.lat) * 110574, dx = (g.lon[i] - p.lon) * 111320 * cosLat;
       const d = dx * dx + dy * dy;
       if (d < bd) { bd = d; best = i; }
@@ -287,6 +302,16 @@ map.on("load", () => {
 });
 
 let minutes = 5, start = null, startMarker = null, busy = false, cache = null, data = null;
+
+// Preprocessed Baku data (from prepare_baku.py). If baku.json is missing, taps fall back to Overpass.
+let LOCAL = null;
+fetch("baku.json")
+  .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+  .then((d) => {
+    LOCAL = { bbox: d.bbox, g: graphFromData(d), pois: d.pois };
+    statusEl.textContent = `Baku datası yükləndi (${d.lat.length} düyün, ${d.pois.length} yer). Toxun.`;
+  })
+  .catch(() => {});
 const statusEl = document.getElementById("status");
 
 function showLines(segs) {
@@ -338,19 +363,25 @@ async function run(lat, lon) {
     statusEl.textContent = "Küçələr və yerlər yüklənir…";
     const t0 = performance.now();
     const radius = Math.round(limit + 80);
-    const fromCache = !!(cache && cache.lat === lat && cache.lon === lon && cache.radius >= radius);
+    const local = !!(LOCAL && lat >= LOCAL.bbox[0] && lat <= LOCAL.bbox[2] && lon >= LOCAL.bbox[1] && lon <= LOCAL.bbox[3]);
+    const fromCache = !local && !!(cache && cache.lat === lat && cache.lon === lon && cache.radius >= radius);
     const tNet = performance.now();
-    if (!fromCache) {
-      const [els0, poi0] = await Promise.all([
-        fetchWays(lat, lon, radius),
-        fetchPois(lat, lon, radius).catch(() => null),
-      ]);
-      cache = poi0 ? { lat, lon, radius, els: els0, poiEls: poi0 } : null;
-      data = { els: els0, poiEls: poi0 };
-    } else data = cache;
+    let g, poiEls;
+    if (local) {
+      g = LOCAL.g; poiEls = LOCAL.pois;
+    } else {
+      if (!fromCache) {
+        const [els0, poi0] = await Promise.all([
+          fetchWays(lat, lon, radius),
+          fetchPois(lat, lon, radius).catch(() => null),
+        ]);
+        cache = poi0 ? { lat, lon, radius, els: els0, poiEls: poi0 } : null;
+        data = { els: els0, poiEls: poi0 };
+      } else data = cache;
+      poiEls = data.poiEls;
+      g = buildGraph(data.els);
+    }
     const netMs = Math.round(performance.now() - tNet);
-    const { els, poiEls } = data;
-    const g = buildGraph(els);
     const s = nearestNode(g, lat, lon);
     if (s.node < 0) throw new Error("Burada küçə tapılmadı");
     const dist = dijkstra(g, s.node, limit);
@@ -361,7 +392,7 @@ async function run(lat, lon) {
     const calcMs = Math.round(performance.now() - t0) - netMs;
     statusEl.textContent = `${minutes} dəq: ${(total / 1000).toFixed(2)} km küçə, ` +
       (poiEls ? `${ranked.length} yer, ` : "yerlər yüklənmədi, ") +
-      `şəbəkə ${fromCache ? "keşdən 0" : netMs} ms, hesab ${calcMs} ms`;
+      (local ? `yerli data, hesab ${calcMs + netMs} ms` : `şəbəkə ${fromCache ? "keşdən 0" : netMs} ms, hesab ${calcMs} ms`);
   } catch (e) {
     statusEl.textContent = "Xəta: " + e.message;
   } finally { busy = false; }
