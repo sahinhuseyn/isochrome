@@ -2,63 +2,183 @@
 <html lang="az">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>Reach</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fbf5e9">
+<title>Kəşf Baku</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <style>
-  html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; }
+  :root {
+    --cream: #fbf5e9; --cream2: #f1e8d6; --ink: #25221d; --mute: #8a8274;
+    --acc: #ff5a1f; --good: #2fb36d; --line: #4c3fd1;
+    --hf: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; overflow: hidden; color: var(--ink); background: var(--cream);
+               font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; padding: 0; }
   #map { position: absolute; inset: 0; }
-  #bar { position: absolute; z-index: 1000; left: 10px; right: 10px; bottom: 14px;
-         background: #fff; border-radius: 12px; padding: 10px 12px;
-         box-shadow: 0 2px 10px rgba(0,0,0,.2); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  button { border: 1px solid #ccc; background: #fff; border-radius: 8px; padding: 8px 12px; font-size: 15px; }
-  button.on { background: #000; color: #fff; border-color: #000; }
-  #status { flex: 1 1 100%; font-size: 13px; color: #444; min-height: 16px; }
-  #chips { flex: 1 1 100%; display: flex; gap: 6px; overflow-x: auto; }
-  #chips button { padding: 5px 10px; font-size: 13px; white-space: nowrap; border-radius: 16px; }
-  #list { flex: 1 1 100%; max-height: 28vh; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
-  #bar { max-height: 62vh; overflow-y: auto; }
-  #summary { flex: 1 1 100%; font-size: 12px; color: #666; }
-  #saved { flex: 1 1 100%; display: flex; gap: 6px; overflow-x: auto; }
-  #saved button { padding: 5px 10px; font-size: 13px; white-space: nowrap; }
-  #saved .sv { display: flex; }
-  #saved .sv button:first-child { border-radius: 16px 0 0 16px; }
-  #saved .sv .rm { border-radius: 0 16px 16px 0; border-left: 0; padding: 5px 8px; color: #888; }
-  #saved .add { border-radius: 16px; border-style: dashed; }
-  #list li.sel { background: #fff4ec; }
-  #list .lk { border: 0; background: none; padding: 2px 6px; font-size: 17px; color: #c8c8c8; }
-  #list .lk.on { color: #000; }
-  #list .lk.bad.on { color: #c0392b; }
-  #list li { display: flex; gap: 10px; align-items: center; padding: 7px 2px; border-top: 1px solid #eee; font-size: 14px; }
-  #list .rank { width: 22px; height: 22px; border-radius: 50%; background: #000; color: #fff;
-                font-size: 12px; display: flex; align-items: center; justify-content: center; flex: none; }
-  #list .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #list .meta { color: #666; font-size: 12px; white-space: nowrap; }
-  .pin { width: 22px; height: 22px; border-radius: 50%; background: #000; color: #fff; border: 2px solid #fff;
-         font: 12px system-ui, sans-serif; display: flex; align-items: center; justify-content: center; }
+  #map .maplibregl-canvas { filter: sepia(.22) saturate(1.2) brightness(1.03); }
+  .hf { font-family: var(--hf); }
+
+  /* top bar */
+  #hud { position: absolute; z-index: 10; top: max(10px, env(safe-area-inset-top)); left: 10px; display: flex; align-items: center;
+         gap: 10px; background: var(--cream); border-radius: 26px; padding: 6px 14px 6px 6px; box-shadow: 0 3px 14px rgba(60,40,10,.22); }
+  #hud .lv { width: 38px; height: 38px; border-radius: 50%; background: var(--ink); color: var(--cream); font-family: var(--hf);
+             font-weight: 700; font-size: 22px; display: flex; align-items: center; justify-content: center; }
+  #hud .tx { display: flex; flex-direction: column; gap: 4px; min-width: 92px; text-align: left; }
+  #hud .nm { font-family: var(--hf); font-weight: 700; font-size: 17px; line-height: 1; letter-spacing: .3px; text-transform: uppercase; }
+  #hud .bar { display: block; height: 6px; border-radius: 3px; background: var(--cream2); overflow: hidden; }
+  #hud .bar i { display: block; height: 100%; width: 0; background: var(--acc); border-radius: 3px; transition: width .5s; }
+  #hud .st { font-family: var(--hf); font-weight: 700; font-size: 20px; }
+  #locBtn { position: absolute; z-index: 10; top: calc(max(10px, env(safe-area-inset-top)) + 50px); right: 10px; width: 44px; height: 44px;
+            border-radius: 50%; background: var(--cream); box-shadow: 0 3px 14px rgba(60,40,10,.22); font-size: 20px; }
+
+  /* bottom sheet */
+  #sheet { position: absolute; z-index: 20; left: 0; right: 0; bottom: 0; max-width: 560px; margin: 0 auto; background: var(--cream);
+           border-radius: 26px 26px 0 0; box-shadow: 0 -6px 26px rgba(60,40,10,.25); padding: 8px 0 calc(10px + env(safe-area-inset-bottom)); }
+  #grab { width: 40px; height: 4px; border-radius: 2px; background: #d9cfb9; margin: 0 auto 10px; }
+  .row { display: flex; gap: 8px; overflow-x: auto; padding: 0 14px; scrollbar-width: none; }
+  .row::-webkit-scrollbar { display: none; }
+  .pill { flex: none; padding: 9px 15px; border-radius: 22px; background: var(--cream2); font-weight: 700; font-size: 14px; white-space: nowrap; }
+  .pill.on { background: var(--ink); color: var(--cream); }
+  #times .pill { font-family: var(--hf); font-size: 18px; padding: 7px 16px; letter-spacing: .3px; }
+  #cats { margin-top: 10px; }
+  #surprise { display: block; margin: 10px 14px 0; width: calc(100% - 28px); padding: 12px; border-radius: 18px;
+              background: var(--acc); color: #fff; font-family: var(--hf); font-weight: 700; font-size: 21px; letter-spacing: .5px;
+              text-transform: uppercase; box-shadow: 0 5px 14px rgba(255,90,31,.38); }
+  #surprise:active { transform: translateY(1px); }
+
+  /* selected place */
+  #pick { margin: 10px 14px 0; display: flex; align-items: center; gap: 10px; background: #fff; border-radius: 18px; padding: 10px 10px 10px 12px;
+          box-shadow: 0 2px 10px rgba(60,40,10,.12); border: 2px solid var(--acc); }
+  #pick .pe2 { font-size: 28px; }
+  #pick .tx { flex: 1; min-width: 0; }
+  #pick .pn { font-family: var(--hf); font-weight: 700; font-size: 20px; line-height: 1.05; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #pick .pm { font-size: 12px; color: var(--mute); margin-top: 2px; }
+  #pick .go { background: var(--ink); color: var(--cream); font-family: var(--hf); font-weight: 700; font-size: 19px; border-radius: 14px; padding: 10px 16px; text-transform: uppercase; }
+  #pick .x { color: var(--mute); font-size: 16px; padding: 6px; }
+
+  /* cards */
+  #cards { display: flex; gap: 10px; overflow-x: auto; padding: 12px 14px 6px; scroll-snap-type: x proximity; scrollbar-width: none; }
+  #cards::-webkit-scrollbar { display: none; }
+  .card { flex: none; width: 148px; scroll-snap-align: start; background: #fff; border-radius: 18px; padding: 10px 10px 12px; position: relative;
+          border: 2px solid transparent; box-shadow: 0 2px 8px rgba(60,40,10,.1); cursor: pointer; }
+  .card.sel { border-color: var(--acc); }
+  .card .cic { font-size: 26px; line-height: 1; }
+  .card .cn { font-family: var(--hf); font-weight: 700; font-size: 18px; line-height: 1.05; margin-top: 6px; height: 38px; overflow: hidden; }
+  .card .cm { font-size: 12px; color: var(--mute); margin-top: 2px; }
+  .card .cx { display: inline-block; margin-top: 6px; font-family: var(--hf); font-weight: 700; font-size: 15px; color: #b8420f; background: #ffe6d9; border-radius: 10px; padding: 1px 9px; }
+  .card .cx.done { color: #1c7a47; background: #daf3e5; }
+  .card .hrt { position: absolute; top: 6px; right: 8px; font-size: 20px; color: #d6cdb9; padding: 2px; }
+  .card .hrt.on { color: #ff3b6b; }
+  .empty { flex: 1; padding: 14px 16px; border-radius: 18px; background: #fff; font-size: 14px; line-height: 1.4; box-shadow: 0 2px 8px rgba(60,40,10,.1); }
+  #info { padding: 6px 16px 0; font-size: 11px; color: var(--mute); min-height: 14px; }
+
+  /* navigation mode */
+  #nav { padding: 6px 18px 8px; text-align: center; }
+  #nav .nv-ic { font-size: 34px; }
+  #nav .nv-nm { font-family: var(--hf); font-weight: 700; font-size: 24px; text-transform: uppercase; letter-spacing: .3px; }
+  #nav .nv-big { font-family: var(--hf); font-weight: 700; font-size: 64px; line-height: 1; margin-top: 4px; color: var(--acc); }
+  #nav .nv-sub { color: var(--mute); font-size: 13px; margin-top: 2px; }
+  #nav .btns { display: flex; gap: 10px; margin-top: 14px; }
+  #nav .btns button { flex: 1; padding: 14px; border-radius: 16px; font-family: var(--hf); font-weight: 700; font-size: 22px; text-transform: uppercase; }
+  #nav .ok { background: var(--good); color: #fff; box-shadow: 0 5px 14px rgba(47,179,109,.4); }
+  #nav .cancel { background: var(--cream2); }
+
+  /* map pins */
+  .pinw { width: 36px; height: 36px; position: relative; cursor: pointer; }
+  .pinw.sel { z-index: 5; }
+  .pin2 { width: 36px; height: 36px; border-radius: 50%; background: #fff; border: 3px solid #999; display: flex; align-items: center; justify-content: center;
+          font-size: 18px; box-shadow: 0 3px 8px rgba(0,0,0,.35); transition: transform .15s; }
+  .pinw.sel .pin2 { transform: scale(1.25); border-color: var(--acc); }
+  .pin2.c-kafe { border-color: #c97b3b; } .pin2.c-yemek { border-color: #e5484d; } .pin2.c-gozellik { border-color: #e255a1; }
+  .pin2.c-park { border-color: #2fb36d; } .pin2.c-metro { border-color: #3b82f6; } .pin2.c-gorulecek { border-color: #8b5cf6; }
+  .pinw.sel .pin2 { border-color: var(--acc); }
+  .pin2.done { background: #daf3e5; }
+  .chip { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-family: var(--hf);
+          font-weight: 700; font-size: 14px; padding: 0 7px; border-radius: 9px; white-space: nowrap; }
+  .sdot { width: 20px; height: 20px; border-radius: 50%; background: var(--acc); border: 4px solid #fff; box-shadow: 0 0 0 0 rgba(255,90,31,.5); animation: pulse 2s infinite; }
+  .gdot { width: 18px; height: 18px; border-radius: 50%; background: #3b82f6; border: 3px solid #fff; box-shadow: 0 0 0 6px rgba(59,130,246,.25); }
+  @keyframes pulse { 70% { box-shadow: 0 0 0 16px rgba(255,90,31,0); } 100% { box-shadow: 0 0 0 0 rgba(255,90,31,0); } }
+
+  /* toasts and celebration */
+  #toast { position: absolute; z-index: 60; left: 50%; top: calc(max(10px, env(safe-area-inset-top)) + 60px); transform: translateX(-50%); display: flex;
+           flex-direction: column; gap: 8px; align-items: center; pointer-events: none; width: 92vw; }
+  .tt { background: var(--ink); color: var(--cream); padding: 10px 16px; border-radius: 16px; font-weight: 600; font-size: 14px; text-align: center;
+        box-shadow: 0 6px 18px rgba(0,0,0,.3); animation: pop .25s ease-out; }
+  @keyframes pop { from { transform: translateY(-10px) scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
+  #cele { position: absolute; z-index: 50; inset: 0; pointer-events: none; display: none; overflow: hidden; }
+  #cele.on { display: block; }
+  .cbox { position: absolute; left: 50%; top: 34%; transform: translate(-50%, -50%); background: var(--cream); border-radius: 26px; padding: 18px 30px;
+          text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,.35); animation: boing .45s cubic-bezier(.2,1.5,.4,1); }
+  .cbox .ce { font-size: 44px; } .cbox .ct { font-family: var(--hf); font-weight: 700; font-size: 52px; color: var(--acc); line-height: 1; }
+  .cbox .cs { font-size: 14px; margin-top: 4px; max-width: 70vw; }
+  @keyframes boing { from { transform: translate(-50%, -50%) scale(.3); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+  .cf { position: absolute; top: -30px; font-size: 24px; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: .4; } }
+
+  /* profile */
+  #profile { position: absolute; z-index: 40; inset: 0; background: var(--cream); overflow-y: auto; padding: calc(14px + env(safe-area-inset-top)) 16px 40px; display: none; }
+  #profile.open { display: block; }
+  #profile .top { display: flex; justify-content: space-between; align-items: center; max-width: 560px; margin: 0 auto; }
+  #profile .wrap { max-width: 560px; margin: 0 auto; }
+  #profile h1 { font-family: var(--hf); font-size: 30px; text-transform: uppercase; margin: 0; letter-spacing: .5px; }
+  #profile h2 { font-family: var(--hf); font-size: 22px; text-transform: uppercase; margin: 22px 0 8px; letter-spacing: .5px; }
+  #profile .close { font-size: 22px; padding: 6px 10px; background: var(--cream2); border-radius: 14px; }
+  .hero { display: flex; align-items: center; gap: 14px; margin-top: 10px; }
+  .hero .big { width: 72px; height: 72px; border-radius: 50%; background: var(--ink); color: var(--cream); font-family: var(--hf); font-weight: 700; font-size: 44px;
+               display: flex; align-items: center; justify-content: center; flex: none; }
+  .hero .tx { flex: 1; } .hero .nm { font-family: var(--hf); font-weight: 700; font-size: 28px; text-transform: uppercase; line-height: 1; }
+  .hero .sub { font-size: 13px; color: var(--mute); margin: 3px 0 6px; }
+  .pbar { height: 10px; border-radius: 5px; background: var(--cream2); overflow: hidden; } .pbar i { display: block; height: 100%; background: var(--acc); border-radius: 5px; }
+  .pbar.g i { background: var(--good); }
+  .qrow { display: flex; align-items: center; gap: 10px; background: #fff; border-radius: 16px; padding: 10px 12px; margin-bottom: 8px; box-shadow: 0 2px 8px rgba(60,40,10,.08); }
+  .qrow .qe { font-size: 24px; } .qrow .qt { flex: 1; font-weight: 600; font-size: 14px; } .qrow .qp { font-family: var(--hf); font-weight: 700; font-size: 18px; color: var(--mute); }
+  .qrow.done { background: #daf3e5; } .qrow.done .qp { color: #1c7a47; }
+  .badges { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .bdg { background: #fff; border-radius: 16px; padding: 10px 6px; text-align: center; box-shadow: 0 2px 8px rgba(60,40,10,.08); }
+  .bdg .be { font-size: 28px; } .bdg .bn { font-family: var(--hf); font-weight: 700; font-size: 15px; line-height: 1.05; margin-top: 2px; } .bdg .bd { font-size: 10px; color: var(--mute); margin-top: 2px; }
+  .bdg.off { opacity: .4; filter: grayscale(1); }
+  .crow { display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 4px 10px; margin-bottom: 10px; }
+  .crow .cl { font-weight: 600; font-size: 13px; } .crow .cc { font-family: var(--hf); font-weight: 700; font-size: 17px; }
+  .crow .pbar { grid-column: 2 / 4; }
+  .srow { display: flex; align-items: center; gap: 10px; background: #fff; border-radius: 16px; padding: 10px 12px; margin-bottom: 8px; }
+  .srow .sn { flex: 1; font-weight: 600; } .srow button { color: var(--mute); font-size: 18px; padding: 4px 8px; }
+  .btn2 { background: var(--ink); color: var(--cream); font-family: var(--hf); font-weight: 700; font-size: 19px; text-transform: uppercase; padding: 11px 16px; border-radius: 14px; width: 100%; margin-top: 4px; }
+  .reset { display: block; margin: 26px auto 0; color: var(--mute); font-size: 12px; text-decoration: underline; }
 </style>
 </head>
 <body>
 <div id="map"></div>
-<div id="bar">
-  <button data-min="5" class="on">5 dəq</button>
-  <button data-min="10">10 dəq</button>
-  <button data-min="15">15 dəq</button>
-  <button id="loc">Mənim yerim</button>
-  <div id="saved"></div>
-  <div id="status">Xəritəyə toxun və ya "Mənim yerim" düyməsini bas.</div>
-  <div id="chips">
-    <button data-cat="all" class="on">Hamısı</button>
-    <button data-cat="kafe">Kafe</button>
-    <button data-cat="yemek">Yemək</button>
-    <button data-cat="gozellik">Gözəllik</button>
-    <button data-cat="park">Park</button>
-    <button data-cat="metro">Metro</button>
-    <button data-cat="gorulecek">Görməli</button>
+<button id="hud" aria-label="Profil və irəliləyiş">
+  <span class="lv" id="hLv">1</span>
+  <span class="tx"><span class="nm" id="hNm">Turist</span><span class="bar"><i id="hBar"></i></span></span>
+  <span class="st" id="hSt">🔥 0</span>
+</button>
+<button id="locBtn" aria-label="Mənim yerim">📍</button>
+<div id="toast"></div>
+<div id="cele"></div>
+<div id="sheet">
+  <div id="grab"></div>
+  <div id="home">
+    <div class="row" id="times">
+      <button class="pill on" data-min="5">🚶 5 dəq</button>
+      <button class="pill" data-min="10">🚶 10 dəq</button>
+      <button class="pill" data-min="15">🚶 15 dəq</button>
+    </div>
+    <button id="surprise">✨ Məni təəccübləndir</button>
+    <div id="pick" hidden></div>
+    <div class="row" id="saved" hidden style="margin-top:10px"></div>
+    <div class="row" id="cats"></div>
+    <div id="cards"></div>
+    <div id="info"></div>
   </div>
-  <div id="summary"></div>
-  <ul id="list"></ul>
+  <div id="nav" hidden></div>
 </div>
+<div id="profile"></div>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script>
@@ -296,9 +416,223 @@ function diversify(list, perCat = 2) {
   const count = {};
   return list.filter((p) => (count[p.cat] = (count[p.cat] || 0) + 1) <= perCat);
 }
+// ---------- turn-by-turn ----------
+function bearing(la1, lo1, la2, lo2) {
+  const r = Math.PI / 180, dl = (lo2 - lo1) * r;
+  const y = Math.sin(dl) * Math.cos(la2 * r);
+  const x = Math.cos(la1 * r) * Math.sin(la2 * r) - Math.sin(la1 * r) * Math.cos(la2 * r) * Math.cos(dl);
+  return (Math.atan2(y, x) / r + 360) % 360;
+}
+const angDiff = (a, b) => ((b - a + 540) % 360) - 180; // signed turn from heading a to heading b, + = right
+
+// Steps from a polyline [[lat,lon],...]: [{ turn, dist }]. `turn` is how to enter that leg ("start" for the first;
+// otherwise left/right, slight_left/slight_right, uturn); `dist` is its length in metres.
+// Bends under 30 degrees and legs under 10 m are merged into the leg before them.
+function routeSteps(pts) {
+  const segs = [];
+  for (let i = 1; i < pts.length; i++) {
+    const d = haversine(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]);
+    if (d >= 0.5) segs.push({ i0: i - 1, i1: i, d, b: bearing(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]) });
+  }
+  if (!segs.length) return [];
+  const legs = [];
+  for (const s of segs) {
+    const last = legs[legs.length - 1];
+    if (last && Math.abs(angDiff(last.lastB, s.b)) < 30 && Math.abs(angDiff(last.b0, s.b)) < 60) {
+      last.i1 = s.i1; last.d += s.d; last.lastB = s.b;
+    } else legs.push({ i0: s.i0, i1: s.i1, d: s.d, b0: s.b, lastB: s.b });
+  }
+  const legB = (l) => bearing(pts[l.i0][0], pts[l.i0][1], pts[l.i1][0], pts[l.i1][1]);
+  for (let changed = true; changed;) {
+    changed = false;
+    for (let k = 1; k < legs.length; k++) {
+      const l = legs[k], prev = legs[k - 1];
+      const tiny = l.d < 10 && k < legs.length - 1;
+      const straight = Math.abs(angDiff(legB(prev), legB(l))) < 30;
+      if (tiny || straight) { prev.i1 = l.i1; prev.d += l.d; legs.splice(k, 1); changed = true; break; }
+    }
+  }
+  return legs.map((l, k) => {
+    let turn = "start";
+    if (k > 0) {
+      const a = angDiff(legB(legs[k - 1]), legB(l)), m = Math.abs(a);
+      turn = m >= 150 ? "uturn" : (m < 60 ? "slight_" : "") + (a > 0 ? "right" : "left");
+    }
+    return { turn, dist: l.d };
+  });
+}
+
+// ---------- game logic (pure; all state is passed in, nothing touches the DOM) ----------
+const CAT_EMOJI = { kafe: "☕", yemek: "🍽️", gozellik: "💅", park: "🌳", metro: "🚇", gorulecek: "🏛️" };
+const BASE_XP = { kafe: 15, yemek: 15, gozellik: 15, park: 20, metro: 10, gorulecek: 30 };
+const QUEST_XP = 20;
+const LEVEL_NAMES = ["Turist", "Gəzən", "Kəşfiyyatçı", "Bakılı", "Şəhər bələdçisi", "Yerli əfsanə"];
+
+// New place: base + 2 XP per walking minute (farther = more reward) + 10 if GPS-verified. Repeat visit: 5.
+function xpFor(p, alreadyVisited, verified) {
+  if (alreadyVisited) return 5;
+  return BASE_XP[p.cat] + 2 * Math.max(1, Math.round(p.tMin)) + (verified ? 10 : 0);
+}
+
+// Level n -> n+1 needs 50 + 50*n XP (100, 150, 200, ...).
+function levelFor(xp) {
+  let level = 1, floor = 0;
+  for (;;) {
+    const need = 50 + 50 * level;
+    if (xp < floor + need) {
+      return { level, name: LEVEL_NAMES[Math.min(level, LEVEL_NAMES.length) - 1], into: xp - floor, need, pct: (xp - floor) / need };
+    }
+    floor += need; level++;
+  }
+}
+
+const pad2 = (n) => String(n).padStart(2, "0");
+function dayStr(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+function shiftDay(s, delta) {
+  const [y, m, d] = s.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d + delta));
+  return `${t.getUTCFullYear()}-${pad2(t.getUTCMonth() + 1)}-${pad2(t.getUTCDate())}`;
+}
+
+// Consecutive days with a check-in, ending today (or yesterday, so the streak is still alive before today's first check-in).
+function streakOf(days, today) {
+  const set = new Set(days);
+  let cur = set.has(today) ? today : shiftDay(today, -1);
+  let n = 0;
+  while (set.has(cur)) { n++; cur = shiftDay(cur, -1); }
+  return n;
+}
+
+// Discoveries = first check-in at each distinct place. Repeats don't count towards badges/quests.
+function statsOf(checkins, today) {
+  const seen = new Set(), byCat = {};
+  for (const c of checkins) {
+    if (seen.has(c.key)) continue;
+    seen.add(c.key);
+    byCat[c.cat] = (byCat[c.cat] || 0) + 1;
+  }
+  return { total: seen.size, byCat, streak: streakOf(checkins.map((c) => c.day), today) };
+}
+
+const BADGES = [
+  { id: "first", emoji: "👣", name: "İlk addım", desc: "İlk yeri kəşf et", test: (s) => s.total >= 1 },
+  { id: "five", emoji: "🧭", name: "Kəşfiyyatçı", desc: "5 yer kəşf et", test: (s) => s.total >= 5 },
+  { id: "twenty", emoji: "🗺️", name: "Xəritəçi", desc: "20 yer kəşf et", test: (s) => s.total >= 20 },
+  { id: "cafe", emoji: "☕", name: "Kafe ovçusu", desc: "5 kafe", test: (s) => (s.byCat.kafe || 0) >= 5 },
+  { id: "food", emoji: "🍽️", name: "Dad ustası", desc: "5 yemək yeri", test: (s) => (s.byCat.yemek || 0) >= 5 },
+  { id: "park", emoji: "🌳", name: "Yaşıl gəzinti", desc: "3 park", test: (s) => (s.byCat.park || 0) >= 3 },
+  { id: "history", emoji: "🏛️", name: "Tarix həvəskarı", desc: "5 görməli yer", test: (s) => (s.byCat.gorulecek || 0) >= 5 },
+  { id: "metro", emoji: "🚇", name: "Metro bələdçisi", desc: "3 metro", test: (s) => (s.byCat.metro || 0) >= 3 },
+  { id: "all", emoji: "🌈", name: "Hər şeydən bir", desc: "Hər kateqoriyadan bir yer", test: (s) => Object.keys(CAT_LABELS).every((c) => (s.byCat[c] || 0) >= 1) },
+  { id: "streak3", emoji: "🔥", name: "3 gün ardıcıl", desc: "3 gün ardıcıl kəşf", test: (s) => s.streak >= 3 },
+  { id: "streak7", emoji: "⚡", name: "Həftəlik", desc: "7 gün ardıcıl kəşf", test: (s) => s.streak >= 7 },
+];
+const badgesEarned = (stats) => BADGES.filter((b) => b.test(stats)).map((b) => b.id);
+
+const QUEST_POOL = [
+  { id: "cafe1", emoji: "☕", text: "Yeni bir kafe kəşf et", cat: "kafe", n: 1 },
+  { id: "park1", emoji: "🌳", text: "Yeni parkda gəz", cat: "park", n: 1 },
+  { id: "food1", emoji: "🍽️", text: "Yeni yerdə yemək ye", cat: "yemek", n: 1 },
+  { id: "hist1", emoji: "🏛️", text: "Görməli bir yerə get", cat: "gorulecek", n: 1 },
+  { id: "beauty1", emoji: "💅", text: "Gözəllik məkanı kəşf et", cat: "gozellik", n: 1 },
+  { id: "any2", emoji: "🧭", text: "2 yeni yer kəşf et", cat: null, n: 2 },
+  { id: "any3", emoji: "🚀", text: "3 yeni yer kəşf et", cat: null, n: 3 },
+];
+
+function hashStr(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+// Same 3 quests for everyone on a given day: two different category quests + one "any place" quest.
+function questsFor(day) {
+  let h = hashStr(day);
+  const pool = QUEST_POOL.filter((q) => q.cat), picks = [];
+  while (picks.length < 2) {
+    picks.push(pool.splice(h % pool.length, 1)[0]);
+    h = (Math.imul(h, 1103515245) + 12345) >>> 0;
+  }
+  const any = QUEST_POOL.filter((q) => !q.cat);
+  picks.push(any[(h >>> 3) % any.length]);
+  return picks;
+}
+
+// todays = today's discoveries (first visits) only.
+function questProgress(q, todays) {
+  return todays.filter((c) => !q.cat || c.cat === q.cat).length;
+}
+
+const emptyGame = () => ({ xp: 0, checkins: [], questsDone: {}, badges: [] });
+
+// Records a check-in and returns the new game state plus everything the UI wants to celebrate.
+function applyCheckin(state, p, verified, now = new Date()) {
+  const day = dayStr(now), key = placeKey(p);
+  const isNew = !state.checkins.some((c) => c.key === key);
+  const gained = xpFor(p, !isNew, verified);
+  const checkins = state.checkins.concat([{ key, cat: p.cat, name: p.name, lat: p.lat, lon: p.lon, day, ts: now.getTime(), xp: gained, v: !!verified, nw: isNew }]);
+
+  const hadBadges = new Set(state.badges || []);
+  const earnedNow = badgesEarned(statsOf(checkins, day));
+  const newBadges = earnedNow.filter((id) => !hadBadges.has(id));
+
+  const done = new Set((state.questsDone || {})[day] || []);
+  const todays = checkins.filter((c) => c.day === day && c.nw);
+  const newQuests = [];
+  for (const q of questsFor(day)) {
+    if (!done.has(q.id) && questProgress(q, todays) >= q.n) { newQuests.push(q); done.add(q.id); }
+  }
+  const bonus = newQuests.length * QUEST_XP;
+  const xp = state.xp + gained + bonus;
+  return {
+    state: { xp, checkins, questsDone: { ...(state.questsDone || {}), [day]: [...done] }, badges: [...new Set([...hadBadges, ...earnedNow])] },
+    gained, bonus, isNew, newBadges, newQuests,
+    levelBefore: levelFor(state.xp).level, levelAfter: levelFor(xp).level,
+  };
+}
+
+// "Surprise me": weighted random pick, unvisited places 4x more likely, better-scored places more likely.
+function pickSurprise(list, visited, rng = Math.random) {
+  if (!list.length) return null;
+  const w = list.map((p) => (visited.has(placeKey(p)) ? 1 : 4) * Math.sqrt(Math.max(p.score, 0.01)));
+  let r = rng() * w.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < list.length; i++) { r -= w[i]; if (r <= 0) return list[i]; }
+  return list[list.length - 1];
+}
+
+// Named places per category in the whole dataset: the "collect them all" denominators.
+function totalsFromPois(pois) {
+  const c = {};
+  for (const el of pois) {
+    const t = el.tags || {};
+    const cat = catOf(t);
+    if (cat && (t.name || t["name:az"] || t["name:en"])) c[cat] = (c[cat] || 0) + 1;
+  }
+  return c;
+}
 // CORE END
 
 // ---------- UI ----------
+const $ = (id) => document.getElementById(id);
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+// Progress, likes and saved start points live only in this browser (localStorage); the page works without it.
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private mode: ignore */ } },
+};
+let prefs = store.get("reach.prefs", { like: {} });
+if (!prefs || typeof prefs.like !== "object" || prefs.like === null) prefs = { like: {} };
+let game = store.get("reach.game", null);
+if (!game || typeof game.xp !== "number" || !Array.isArray(game.checkins)) game = emptyGame();
+const visitedSet = () => new Set(game.checkins.map((c) => c.key));
+const getSaved = () => store.get("reach.saved", []);
+
 const OVERPASS = [
   "https://overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
@@ -339,73 +673,52 @@ function fetchPois(lat, lon, radius) {
 out center tags;`);
 }
 
+// ---------- map ----------
 const map = new maplibregl.Map({
   container: "map",
   style: "https://tiles.openfreemap.org/styles/positron",
   center: [49.8671, 40.4093], // [lon, lat]
   zoom: 15,
+  attributionControl: false,
 });
+map.addControl(new maplibregl.AttributionControl({ compact: true }), "top-right");
+
 const emptyGeo = { type: "FeatureCollection", features: [] };
+const round = { "line-cap": "round", "line-join": "round" };
 map.on("load", () => {
+  // explored areas: a green glow (~140 m) around every place you have been to
+  map.addSource("explored", { type: "geojson", data: emptyGeo });
+  map.addLayer({
+    id: "explored-glow", type: "circle", source: "explored",
+    paint: {
+      "circle-color": "#2fb36d", "circle-opacity": 0.28, "circle-blur": 0.7,
+      "circle-radius": ["interpolate", ["exponential", 2], ["zoom"], 10, 1.2, 20, 1230],
+    },
+  });
   map.addSource("reach", { type: "geojson", data: emptyGeo });
-  map.addLayer({
-    id: "reach-lines", type: "line", source: "reach",
-    paint: { "line-color": "#000", "line-width": 2.2, "line-opacity": 0.9 },
-    layout: { "line-cap": "round", "line-join": "round" },
-  });
+  map.addLayer({ id: "reach-glow", type: "line", source: "reach", layout: round,
+    paint: { "line-color": "#4c3fd1", "line-width": 9, "line-opacity": 0.16, "line-blur": 4 } });
+  map.addLayer({ id: "reach-lines", type: "line", source: "reach", layout: round,
+    paint: { "line-color": "#4c3fd1", "line-width": 2.4, "line-opacity": 0.85 } });
   map.addSource("route", { type: "geojson", data: emptyGeo });
-  map.addLayer({
-    id: "route-casing", type: "line", source: "route",
-    paint: { "line-color": "#fff", "line-width": 8 },
-    layout: { "line-cap": "round", "line-join": "round" },
-  });
-  map.addLayer({
-    id: "route-line", type: "line", source: "route",
-    paint: { "line-color": "#e8590c", "line-width": 4.5 },
-    layout: { "line-cap": "round", "line-join": "round" },
-  });
+  map.addLayer({ id: "route-casing", type: "line", source: "route", layout: round,
+    paint: { "line-color": "#fff", "line-width": 9 } });
+  map.addLayer({ id: "route-line", type: "line", source: "route", layout: round,
+    paint: { "line-color": "#ff5a1f", "line-width": 5 } });
+  refreshExplored();
 });
 
-let minutes = 5, start = null, startMarker = null, busy = false, cache = null, data = null;
-
-// Preprocessed Baku data (from prepare_baku.py). If baku.json is missing, taps fall back to Overpass.
-let LOCAL = null;
-fetch("baku.json")
-  .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
-  .then((d) => {
-    LOCAL = { bbox: d.bbox, g: graphFromData(d), pois: d.pois };
-    statusEl.textContent = `Baku datası yükləndi (${d.lat.length} düyün, ${d.pois.length} yer). Toxun.`;
-  })
-  .catch(() => {});
-const statusEl = document.getElementById("status");
-
-function showLines(segs) {
-  const coords = segs.map(([a, b]) => [[a[1], a[0]], [b[1], b[0]]]); // lat,lon -> lon,lat
-  map.getSource("reach").setData({
-    type: "Feature", properties: {}, geometry: { type: "MultiLineString", coordinates: coords },
-  });
-  if (!coords.length) return;
-  const b = new maplibregl.LngLatBounds();
-  for (const c of coords) { b.extend(c[0]); b.extend(c[1]); }
-  map.fitBounds(b, { padding: { top: 40, left: 40, right: 40, bottom: barPad() }, maxZoom: 17, duration: 500 });
+function refreshExplored() {
+  const src = map.getSource("explored");
+  if (!src) return;
+  const seen = new Set(), features = [];
+  for (const c of game.checkins) {
+    if (seen.has(c.key) || typeof c.lat !== "number") continue;
+    seen.add(c.key);
+    features.push({ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [c.lon, c.lat] } });
+  }
+  src.setData({ type: "FeatureCollection", features });
 }
-
-// Space the map must leave free at the bottom for the panel (capped so tall panels don't zoom the map away).
-function barPad() {
-  return Math.min(document.getElementById("bar").offsetHeight + 40, Math.round(window.innerHeight * 0.65));
-}
-
-let rawRanked = [], ranked = [], cat = "all", pinMarkers = [], ctx = null, selected = null;
-const listEl = document.getElementById("list");
-const summaryEl = document.getElementById("summary");
-
-// Likes and saved start points live only in this browser (localStorage); the page works without it.
-const store = {
-  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private mode: ignore */ } },
-};
-let prefs = store.get("reach.prefs", { like: {} });
-if (!prefs || typeof prefs.like !== "object" || prefs.like === null) prefs = { like: {} };
 
 function setRoute(coords) {
   const src = map.getSource("route");
@@ -415,171 +728,432 @@ function setRoute(coords) {
     : emptyGeo);
 }
 
-function showRoute(p) {
-  if (!ctx || p.node == null) return;
-  const path = pathTo(ctx.g, ctx.dist, p.node);
-  if (!path) return;
-  const coords = [[start[1], start[0]], ...path.map(([la, lo]) => [lo, la]), [p.lon, p.lat]];
-  setRoute(coords);
-  selected = placeKey(p);
+const sheetPad = () => Math.min($("sheet").offsetHeight + 30, Math.round(window.innerHeight * 0.65));
+
+function fitTo(coords, maxZoom) {
+  if (!coords.length) return;
   const b = new maplibregl.LngLatBounds();
   coords.forEach((c) => b.extend(c));
-  map.fitBounds(b, { padding: { top: 60, left: 50, right: 50, bottom: barPad() }, maxZoom: 18, duration: 500 });
-  statusEl.textContent = `${p.name}: ${Math.max(1, Math.round(p.tMin))} dəq, ~${Math.round(p.tMin * 60 * WALK_MS)} m`;
-  renderPois();
+  map.fitBounds(b, { padding: { top: 80, left: 40, right: 40, bottom: sheetPad() }, maxZoom, duration: 600 });
 }
 
-function setLike(p, v) {
+function showLines(segs) {
+  const coords = segs.map(([a, b]) => [[a[1], a[0]], [b[1], b[0]]]); // lat,lon -> lon,lat
+  map.getSource("reach").setData({ type: "Feature", properties: {}, geometry: { type: "MultiLineString", coordinates: coords } });
+  fitTo(coords.flat(), 17);
+}
+
+// ---------- small UI helpers ----------
+function toast(text, ms = 2800) {
+  const t = el("div", "tt", text);
+  $("toast").appendChild(t);
+  setTimeout(() => t.remove(), ms);
+}
+
+function celebrate(big, sub, emoji) {
+  const box = $("cele");
+  box.replaceChildren();
+  const card = el("div", "cbox");
+  card.append(el("div", "ce", emoji || "🎉"), el("div", "ct", big), el("div", "cs", sub));
+  box.appendChild(card);
+  for (let i = 0; i < 22; i++) {
+    const c = el("span", "cf", ["🎉", "✨", "⭐", "🎊", "🍀"][i % 5]);
+    c.style.left = Math.random() * 100 + "%";
+    c.style.animationDelay = Math.random() * 0.5 + "s";
+    c.style.animationDuration = 1.6 + Math.random() * 1.2 + "s";
+    box.appendChild(c);
+  }
+  box.classList.add("on");
+  setTimeout(() => { box.classList.remove("on"); box.replaceChildren(); }, 2800);
+}
+
+function info(text) { $("info").textContent = text; }
+
+function renderHud() {
+  const lv = levelFor(game.xp), st = statsOf(game.checkins, dayStr(new Date()));
+  $("hLv").textContent = lv.level;
+  $("hNm").textContent = lv.name;
+  $("hBar").style.width = Math.round(lv.pct * 100) + "%";
+  $("hSt").textContent = "🔥 " + st.streak;
+}
+
+// ---------- state ----------
+let minutes = 5, start = null, startMarker = null, busy = false, cache = null, data = null;
+let rawRanked = [], ranked = [], cat = "all", ctx = null;
+let selected = null, selectedPlace = null, navPlace = null, watchId = null, gps = null, meMarker = null;
+let LOCAL = null, TOTALS = {};
+
+// ---------- pins ----------
+let pinMarkers = [];
+const pinEls = new Map();
+function clearPins() { pinMarkers.forEach((m) => m.remove()); pinMarkers = []; pinEls.clear(); }
+
+function addPin(p) {
   const key = placeKey(p);
-  if (v === 0) delete prefs.like[key]; else prefs.like[key] = v;
-  store.set("reach.prefs", prefs);
-  renderPois();
+  if (pinEls.has(key)) return;
+  const outer = el("div", "pinw" + (key === selected ? " sel" : ""));
+  const circle = el("div", "pin2 c-" + p.cat + (visitedSet().has(key) ? " done" : ""));
+  circle.appendChild(el("span", null, CAT_EMOJI[p.cat]));
+  outer.append(circle, el("div", "chip", Math.max(1, Math.round(p.tMin)) + " dəq"));
+  outer.addEventListener("click", (ev) => { ev.stopPropagation(); selectPlace(p); });
+  pinMarkers.push(new maplibregl.Marker({ element: outer }).setLngLat([p.lon, p.lat]).addTo(map));
+  pinEls.set(key, outer);
 }
 
-function likeBtn(label, on, title, extra) {
-  const b = document.createElement("button");
-  b.className = "lk" + (extra ? " " + extra : "") + (on ? " on" : "");
-  b.textContent = label; b.title = title;
-  return b;
-}
-
-function renderPois() {
+// ---------- cards ----------
+function placesToShow() {
   ranked = applyPrefs(rawRanked, prefs);
-  pinMarkers.forEach((m) => m.remove()); pinMarkers = [];
-  listEl.innerHTML = "";
-  const counts = summarize(rawRanked);
-  summaryEl.textContent = start && rawRanked.length
-    ? `${rawRanked.length} yer: ` + Object.keys(CAT_LABELS).filter((c) => counts[c]).map((c) => `${CAT_LABELS[c]} ${counts[c]}`).join(" · ")
-    : "";
-  const top = cat === "all" ? diversify(ranked, 2) : ranked.filter((p) => p.cat === cat).slice(0, 10);
-  top.forEach((p, i) => {
-    const key = placeKey(p), v = prefs.like[key] || 0;
-    const li = document.createElement("li");
-    li.classList.toggle("sel", key === selected);
-    const rank = document.createElement("span"); rank.className = "rank"; rank.textContent = i + 1;
-    const name = document.createElement("span"); name.className = "name"; name.textContent = p.name;
-    const meta = document.createElement("span"); meta.className = "meta";
-    meta.textContent = `${CAT_LABELS[p.cat]} · ${Math.max(1, Math.round(p.tMin))} dəq`;
-    const up = likeBtn("♥", v > 0, "Bəyəndim", "");
-    const down = likeBtn("✕", v < 0, "Bəyənmədim", "bad");
-    up.onclick = (ev) => { ev.stopPropagation(); setLike(p, v > 0 ? 0 : 1); };
-    down.onclick = (ev) => { ev.stopPropagation(); setLike(p, v < 0 ? 0 : -1); };
-    li.append(rank, name, meta, up, down);
-    li.onclick = () => showRoute(p);
-    listEl.appendChild(li);
-    const pin = document.createElement("div"); pin.className = "pin"; pin.textContent = i + 1;
-    pinMarkers.push(new maplibregl.Marker({ element: pin }).setLngLat([p.lon, p.lat]).addTo(map));
+  return cat === "all" ? diversify(ranked, 2) : ranked.filter((p) => p.cat === cat).slice(0, 12);
+}
+
+function renderCards() {
+  const box = $("cards"), sl = box.scrollLeft;
+  box.replaceChildren();
+  clearPins();
+  if (selectedPlace) addPin(selectedPlace); // a "surprise" pick may not be among the visible cards
+  if (!start) {
+    box.appendChild(el("div", "empty", "👆 Xəritəyə toxun və ya 📍 düyməsini bas, 5–15 dəqiqəyə piyada hara çata biləcəyini göstərim."));
+    return;
+  }
+  const list = placesToShow(), vis = visitedSet();
+  if (!list.length) {
+    box.appendChild(el("div", "empty", "Bu zonada uyğun yer tapılmadı. Vaxtı artır və ya başqa nöqtəyə toxun."));
+    return;
+  }
+  for (const p of list) {
+    const key = placeKey(p), done = vis.has(key);
+    const c = el("div", "card" + (key === selected ? " sel" : ""));
+    c.dataset.key = key;
+    c.append(el("div", "cic", CAT_EMOJI[p.cat]), el("div", "cn", p.name),
+      el("div", "cm", `${Math.max(1, Math.round(p.tMin))} dəq · ${Math.round(p.tMin * 60 * WALK_MS)} m`),
+      el("div", "cx" + (done ? " done" : ""), done ? "✓ getmisən" : `+${xpFor(p, false, false)} XP`));
+    const liked = prefs.like[key] === 1;
+    const h = el("span", "hrt" + (liked ? " on" : ""), "♥");
+    h.setAttribute("role", "button");
+    h.setAttribute("aria-label", "Bəyən");
+    h.onclick = (ev) => {
+      ev.stopPropagation();
+      if (liked) delete prefs.like[key]; else prefs.like[key] = 1;
+      store.set("reach.prefs", prefs);
+      renderCards();
+    };
+    c.appendChild(h);
+    c.onclick = () => selectPlace(p);
+    box.appendChild(c);
+    addPin(p);
+  }
+  box.scrollLeft = sl;
+}
+
+// ---------- selecting a place and the route to it ----------
+function renderPick() {
+  const box = $("pick");
+  if (!selectedPlace) { box.hidden = true; return; }
+  const p = selectedPlace, seen = visitedSet().has(placeKey(p));
+  box.hidden = false;
+  box.replaceChildren();
+  const tx = el("div", "tx");
+  tx.append(el("div", "pn", p.name),
+    el("div", "pm", `${Math.max(1, Math.round(p.tMin))} dəq · ${Math.round(p.tMin * 60 * WALK_MS)} m · ` + (seen ? "artıq getmisən (+5 XP)" : `+${xpFor(p, false, false)} XP`)));
+  const go = el("button", "go", "Gedirəm");
+  go.onclick = () => startNav(p);
+  const x = el("button", "x", "✕");
+  x.setAttribute("aria-label", "Seçimi ləğv et");
+  x.onclick = clearSelection;
+  box.append(el("div", "pe2", CAT_EMOJI[p.cat]), tx, go, x);
+}
+
+function clearSelection() {
+  selected = null; selectedPlace = null;
+  setRoute(null);
+  pinEls.forEach((o) => o.classList.remove("sel"));
+  document.querySelectorAll("#cards .card.sel").forEach((c) => c.classList.remove("sel"));
+  renderPick();
+}
+
+function selectPlace(p) {
+  if (!ctx || navPlace) return;
+  const path = pathTo(ctx.g, ctx.dist, p.node);
+  if (!path) return;
+  selectedPlace = p; selected = placeKey(p);
+  const coords = [[start[1], start[0]], ...path.map(([la, lo]) => [lo, la]), [p.lon, p.lat]];
+  setRoute(coords);
+  addPin(p); // the "surprise" pick may not be among the visible cards
+  pinEls.forEach((o, k) => o.classList.toggle("sel", k === selected));
+  document.querySelectorAll("#cards .card").forEach((c) => {
+    const on = c.dataset.key === selected;
+    c.classList.toggle("sel", on);
+    if (on) c.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
   });
-  if (!top.length && start) {
-    const li = document.createElement("li"); li.textContent = "Bu zonada uyğun yer tapılmadı.";
-    listEl.appendChild(li);
+  renderPick();
+  fitTo(coords, 18);
+}
+
+// ---------- navigation mode and check-in ----------
+function updateMe() {
+  if (!gps) return;
+  if (!meMarker) meMarker = new maplibregl.Marker({ element: el("div", "gdot") }).setLngLat([gps.lon, gps.lat]).addTo(map);
+  else meMarker.setLngLat([gps.lon, gps.lat]);
+}
+
+function renderNav() {
+  const p = navPlace, nav = $("nav");
+  nav.replaceChildren();
+  const left = gps ? Math.round(haversine(gps.lat, gps.lon, p.lat, p.lon)) : Math.round(p.tMin * 60 * WALK_MS);
+  nav.append(el("div", "nv-ic", CAT_EMOJI[p.cat]), el("div", "nv-nm", p.name), el("div", "nv-big", left + " m"),
+    el("div", "nv-sub", gps ? "qalıb · canlı GPS ilə" : `~${Math.max(1, Math.round(left / WALK_MS / 60))} dəq · narıncı yolu izlə`));
+  const btns = el("div", "btns");
+  const ok = el("button", "ok", "✓ Çatdım");
+  ok.onclick = () => doCheckIn(p, !!(gps && haversine(gps.lat, gps.lon, p.lat, p.lon) < 80));
+  const cancel = el("button", "cancel", "Ləğv et");
+  cancel.onclick = endNav;
+  btns.append(ok, cancel);
+  nav.appendChild(btns);
+}
+
+function onGps(pos) {
+  gps = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+  updateMe();
+  if (navPlace) {
+    if (haversine(gps.lat, gps.lon, navPlace.lat, navPlace.lon) < 40) doCheckIn(navPlace, true);
+    else renderNav();
   }
 }
 
-async function run(lat, lon) {
-  if (busy) return;
-  busy = true; start = [lat, lon];
+function startNav(p) {
+  navPlace = p;
+  $("home").hidden = true;
+  $("nav").hidden = false;
+  renderNav();
+  if (navigator.geolocation && watchId === null) {
+    watchId = navigator.geolocation.watchPosition(onGps, () => {}, { enableHighAccuracy: true, maximumAge: 2000 });
+  }
+}
+
+function endNav() {
+  navPlace = null;
+  if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+  $("nav").hidden = true;
+  $("home").hidden = false;
+  fitTo(selectedPlace ? [[start[1], start[0]], [selectedPlace.lon, selectedPlace.lat]] : [], 18);
+}
+
+function doCheckIn(p, verified) {
+  const res = applyCheckin(game, p, verified);
+  game = res.state;
+  store.set("reach.game", game);
+  refreshExplored();
+  endNav();
+  clearSelection();
+  renderHud();
+  renderCards();
+  celebrate("+" + (res.gained + res.bonus) + " XP",
+    res.isNew ? `${p.name} kəşf edildi!` + (verified ? " (GPS ilə təsdiqləndi)" : "") : `${p.name} · təkrar ziyarət`,
+    CAT_EMOJI[p.cat]);
+  let delay = 900;
+  const later = (text) => { setTimeout(() => toast(text, 3200), delay); delay += 1100; };
+  for (const q of res.newQuests) later(`✅ ${q.text} (+${QUEST_XP} XP)`);
+  for (const id of res.newBadges) { const b = BADGES.find((x) => x.id === id); later(`🏅 Yeni nişan: ${b.name}`); }
+  if (res.levelAfter > res.levelBefore) later(`⬆️ Səviyyə ${res.levelAfter}: ${levelFor(game.xp).name}`);
+}
+
+// ---------- running a search ----------
+function setStartMarker(lat, lon) {
   if (startMarker) startMarker.remove();
-  const dot = document.createElement("div");
-  dot.style.cssText = "width:14px;height:14px;border-radius:50%;background:#fff;border:3px solid #000";
-  startMarker = new maplibregl.Marker({ element: dot }).setLngLat([lon, lat]).addTo(map);
+  startMarker = new maplibregl.Marker({ element: el("div", "sdot") }).setLngLat([lon, lat]).addTo(map);
+}
+
+async function run(lat, lon) {
+  if (busy || navPlace) return;
+  busy = true; start = [lat, lon];
+  setStartMarker(lat, lon);
+  clearSelection();
   const limit = minutes * 60 * WALK_MS;
   try {
-    statusEl.textContent = "Küçələr və yerlər yüklənir…";
+    info("Yüklənir…");
     const t0 = performance.now();
     const radius = Math.round(limit + 80);
     const local = !!(LOCAL && lat >= LOCAL.bbox[0] && lat <= LOCAL.bbox[2] && lon >= LOCAL.bbox[1] && lon <= LOCAL.bbox[3]);
     const fromCache = !local && !!(cache && cache.lat === lat && cache.lon === lon && cache.radius >= radius);
-    const tNet = performance.now();
     let g, poiEls;
     if (local) {
       g = LOCAL.g; poiEls = LOCAL.pois;
     } else {
       if (!fromCache) {
-        const [els0, poi0] = await Promise.all([
-          fetchWays(lat, lon, radius),
-          fetchPois(lat, lon, radius).catch(() => null),
-        ]);
+        const [els0, poi0] = await Promise.all([fetchWays(lat, lon, radius), fetchPois(lat, lon, radius).catch(() => null)]);
         cache = poi0 ? { lat, lon, radius, els: els0, poiEls: poi0 } : null;
         data = { els: els0, poiEls: poi0 };
       } else data = cache;
       poiEls = data.poiEls;
       g = buildGraph(data.els);
     }
-    const netMs = Math.round(performance.now() - tNet);
     const s = nearestNode(g, lat, lon);
     if (s.node < 0) throw new Error("Burada küçə tapılmadı");
     const dist = dijkstra(g, s.node, limit);
     const { segs, total } = reachableSegments(g, dist, limit);
     ctx = { g, dist };
-    selected = null; setRoute(null);
     rawRanked = poiEls ? rankPois(poiEls, g, dist, limit) : [];
-    renderPois();
+    renderCards();
     showLines(segs);
-    const calcMs = Math.round(performance.now() - t0) - netMs;
-    statusEl.textContent = `${minutes} dəq: ${(total / 1000).toFixed(2)} km küçə, ` +
-      (poiEls ? `${rawRanked.length} yer, ` : "yerlər yüklənmədi, ") +
-      (local ? `yerli data, hesab ${calcMs + netMs} ms` : `şəbəkə ${fromCache ? "keşdən 0" : netMs} ms, hesab ${calcMs} ms`);
+    info(`${minutes} dəq · ${(total / 1000).toFixed(1)} km küçə · ${rawRanked.length} yer · ${local ? "yerli data" : "şəbəkə"} ${Math.round(performance.now() - t0)} ms`);
   } catch (e) {
-    statusEl.textContent = "Xəta: " + e.message;
+    info("");
+    toast("Xəta: " + e.message);
   } finally { busy = false; }
 }
 
 map.on("click", (e) => run(e.lngLat.lat, e.lngLat.lng));
 
-document.querySelectorAll("button[data-min]").forEach((b) => {
+// ---------- controls ----------
+document.querySelectorAll("#times .pill").forEach((b) => {
   b.onclick = () => {
-    document.querySelectorAll("button[data-min]").forEach((x) => x.classList.remove("on"));
-    b.classList.add("on"); minutes = +b.dataset.min;
+    document.querySelectorAll("#times .pill").forEach((x) => x.classList.remove("on"));
+    b.classList.add("on");
+    minutes = +b.dataset.min;
     if (start) run(start[0], start[1]);
   };
 });
 
-document.querySelectorAll("button[data-cat]").forEach((b) => {
-  b.onclick = () => {
-    document.querySelectorAll("button[data-cat]").forEach((x) => x.classList.remove("on"));
-    b.classList.add("on"); cat = b.dataset.cat;
-    renderPois();
-  };
-});
+function renderCats() {
+  const row = $("cats");
+  row.replaceChildren();
+  const opts = [["all", "🌍 Hamısı"], ...Object.keys(CAT_LABELS).map((c) => [c, CAT_EMOJI[c] + " " + CAT_LABELS[c]])];
+  for (const [id, label] of opts) {
+    const b = el("button", "pill" + (id === cat ? " on" : ""), label);
+    b.onclick = () => { cat = id; clearSelection(); renderCats(); renderCards(); };
+    row.appendChild(b);
+  }
+}
+
+$("surprise").onclick = () => {
+  if (!start) { toast("Əvvəl harada olduğunu göstər: xəritəyə toxun və ya 📍 bas"); return; }
+  const pool = cat === "all" ? rawRanked : rawRanked.filter((p) => p.cat === cat);
+  const p = pickSurprise(pool, visitedSet());
+  if (!p) { toast("Bu zonada yer tapılmadı. Vaxtı artır."); return; }
+  toast(`${CAT_EMOJI[p.cat]} Bu gün: ${p.name}`);
+  selectPlace(p);
+};
 
 function locate() {
-  if (!navigator.geolocation) { statusEl.textContent = "Brauzer lokasiyanı dəstəkləmir. Xəritəyə toxun."; return; }
-  statusEl.textContent = "Lokasiya axtarılır…";
+  if (!navigator.geolocation) { toast("Brauzer lokasiyanı dəstəkləmir. Xəritəyə toxun."); return; }
   navigator.geolocation.getCurrentPosition(
     (p) => { map.jumpTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 16 }); run(p.coords.latitude, p.coords.longitude); },
-    () => { statusEl.textContent = "Lokasiya icazəsi yoxdur (HTTPS lazımdır). Xəritəyə toxun."; },
+    () => toast("Lokasiya icazəsi yoxdur (HTTPS lazımdır). Xəritəyə toxun."),
     { enableHighAccuracy: true, timeout: 10000 }
   );
 }
-document.getElementById("loc").onclick = locate;
+$("locBtn").onclick = locate;
 
+// ---------- saved start points ----------
 function renderSaved() {
-  const box = document.getElementById("saved");
-  box.innerHTML = "";
-  const saved = store.get("reach.saved", []);
-  saved.forEach((s, i) => {
-    const wrap = document.createElement("span"); wrap.className = "sv";
-    const go = document.createElement("button"); go.textContent = s.name;
-    go.onclick = () => { map.jumpTo({ center: [s.lon, s.lat], zoom: 16 }); run(s.lat, s.lon); };
-    const rm = document.createElement("button"); rm.className = "rm"; rm.textContent = "×"; rm.title = "Sil";
-    rm.onclick = () => { store.set("reach.saved", saved.filter((_, j) => j !== i)); renderSaved(); };
-    wrap.append(go, rm);
-    box.appendChild(wrap);
+  const row = $("saved"), saved = getSaved();
+  row.replaceChildren();
+  row.hidden = !saved.length;
+  for (const s of saved) {
+    const b = el("button", "pill", "📍 " + s.name);
+    b.onclick = () => { map.jumpTo({ center: [s.lon, s.lat], zoom: 16 }); run(s.lat, s.lon); };
+    row.appendChild(b);
+  }
+}
+
+// ---------- profile ----------
+function renderProfile() {
+  const box = $("profile");
+  box.replaceChildren();
+  const today = dayStr(new Date()), st = statsOf(game.checkins, today), lv = levelFor(game.xp);
+  const wrap = el("div", "wrap");
+  const top = el("div", "top");
+  const close = el("button", "close", "✕");
+  close.setAttribute("aria-label", "Bağla");
+  close.onclick = () => box.classList.remove("open");
+  top.append(el("h1", null, "Mənim kəşflərim"), close);
+
+  const hero = el("div", "hero"), tx = el("div", "tx");
+  const bar = el("div", "pbar"); bar.appendChild(el("i")); bar.firstChild.style.width = Math.round(lv.pct * 100) + "%";
+  tx.append(el("div", "nm", lv.name), el("div", "sub", `${lv.into} / ${lv.need} XP · cəmi ${game.xp} XP · 🔥 ${st.streak} gün ardıcıl`), bar);
+  hero.append(el("div", "big", String(lv.level)), tx);
+  wrap.append(top, hero);
+
+  wrap.appendChild(el("h2", null, "Bugünkü tapşırıqlar"));
+  const todays = game.checkins.filter((c) => c.day === today && c.nw), doneIds = (game.questsDone || {})[today] || [];
+  for (const q of questsFor(today)) {
+    const prog = Math.min(q.n, questProgress(q, todays)), done = doneIds.includes(q.id);
+    const row = el("div", "qrow" + (done ? " done" : ""));
+    row.append(el("span", "qe", done ? "✅" : q.emoji), el("span", "qt", q.text), el("span", "qp", `${prog}/${q.n} · +${QUEST_XP}`));
+    wrap.appendChild(row);
+  }
+
+  wrap.appendChild(el("h2", null, "Nişanlar"));
+  const grid = el("div", "badges");
+  for (const b of BADGES) {
+    const on = (game.badges || []).includes(b.id);
+    const d = el("div", "bdg" + (on ? "" : " off"));
+    d.append(el("div", "be", b.emoji), el("div", "bn", b.name), el("div", "bd", b.desc));
+    grid.appendChild(d);
+  }
+  wrap.appendChild(grid);
+
+  const totalAll = Object.values(TOTALS).reduce((a, b) => a + b, 0);
+  wrap.appendChild(el("h2", null, totalAll ? `Mərkəzi Baku: ${(100 * st.total / totalAll).toFixed(1)}% kəşf edilib` : "Kəşf irəliləyişi"));
+  for (const c of Object.keys(CAT_LABELS)) {
+    const have = st.byCat[c] || 0, all = TOTALS[c] || 0;
+    const row = el("div", "crow"), pb = el("div", "pbar g");
+    pb.appendChild(el("i")); pb.firstChild.style.width = (all ? Math.min(100, 100 * have / all) : 0) + "%";
+    row.append(el("span", "ce2", CAT_EMOJI[c]), el("span", "cl", CAT_LABELS[c]), el("span", "cc", all ? `${have} / ${all}` : String(have)), pb);
+    wrap.appendChild(row);
+  }
+
+  wrap.appendChild(el("h2", null, "Yerlərim"));
+  getSaved().forEach((s, i) => {
+    const row = el("div", "srow"), del = el("button", null, "🗑");
+    del.setAttribute("aria-label", "Sil");
+    del.onclick = () => { store.set("reach.saved", getSaved().filter((_, j) => j !== i)); renderSaved(); renderProfile(); };
+    row.append(el("span", null, "📍"), el("span", "sn", s.name), del);
+    wrap.appendChild(row);
   });
-  const add = document.createElement("button"); add.className = "add"; add.textContent = "+ Saxla";
+  const add = el("button", "btn2", "＋ Hazırkı nöqtəni saxla");
   add.onclick = () => {
-    if (!start) { statusEl.textContent = "Əvvəl xəritəyə toxun, sonra həmin nöqtəni saxla."; return; }
+    if (!start) { toast("Əvvəl xəritəyə toxun, sonra həmin nöqtəni saxla."); return; }
     const name = (prompt("Bu nöqtənin adı (məs. Ev, Universitet):") || "").trim().slice(0, 20);
     if (!name) return;
-    const list = store.get("reach.saved", []).filter((x) => x.name !== name);
-    list.push({ name, lat: start[0], lon: start[1] });
-    store.set("reach.saved", list);
-    renderSaved();
+    store.set("reach.saved", getSaved().filter((x) => x.name !== name).concat([{ name, lat: start[0], lon: start[1] }]));
+    renderSaved(); renderProfile();
   };
-  box.appendChild(add);
+  wrap.appendChild(add);
+
+  const reset = el("button", "reset", "Bütün irəliləyişi sıfırla");
+  reset.onclick = () => {
+    if (!confirm("Bütün XP, nişanlar və kəşflər silinsin?")) return;
+    game = emptyGame(); store.set("reach.game", game);
+    refreshExplored(); renderHud(); renderCards(); renderProfile();
+  };
+  wrap.appendChild(reset);
+  box.appendChild(wrap);
 }
+
+$("hud").onclick = () => { renderProfile(); $("profile").classList.add("open"); };
+
+// ---------- startup ----------
+// Preprocessed Baku data (from prepare_baku.py). If baku.json is missing, taps fall back to Overpass.
+fetch("baku.json")
+  .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+  .then((d) => {
+    LOCAL = { bbox: d.bbox, g: graphFromData(d), pois: d.pois };
+    TOTALS = totalsFromPois(d.pois);
+    info(`Baku datası yükləndi: ${d.pois.length} yer`);
+  })
+  .catch(() => {})
+  .then(() => {
+    // Returning user who already allowed location: start from where they are, no tap needed.
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: "geolocation" }).then((r) => { if (r.state === "granted") locate(); }).catch(() => {});
+    }
+  });
+
+renderHud();
+renderCats();
 renderSaved();
+renderCards();
 </script>
 </body>
 </html>
