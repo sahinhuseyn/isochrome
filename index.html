@@ -896,15 +896,25 @@ function updateMe() {
   else meMarker.setLngLat([gps.lon, gps.lat]);
 }
 
+// The live GPS fix only makes sense if the phone is plausibly on the way: not farther from the place
+// than the chosen start point is (plus 300 m slack). Otherwise (e.g. you tapped a spot away from where you are) it is ignored.
+function gpsUsable(p) {
+  return !!gps && haversine(gps.lat, gps.lon, p.lat, p.lon) <= p.tMin * 60 * WALK_MS + 300;
+}
+
 function renderNav() {
   const p = navPlace, nav = $("nav");
   nav.replaceChildren();
-  const left = gps ? Math.round(haversine(gps.lat, gps.lon, p.lat, p.lon)) : Math.round(p.tMin * 60 * WALK_MS);
+  const routeM = Math.round(p.tMin * 60 * WALK_MS);
+  const gpsOk = gpsUsable(p);
+  const left = gpsOk ? Math.round(haversine(gps.lat, gps.lon, p.lat, p.lon)) : routeM;
   nav.append(el("div", "nv-ic", CAT_EMOJI[p.cat]), el("div", "nv-nm", p.name), el("div", "nv-big", left + " m"),
-    el("div", "nv-sub", gps ? "qalıb · canlı GPS ilə" : `~${Math.max(1, Math.round(left / WALK_MS / 60))} dəq · narıncı yolu izlə`));
+    el("div", "nv-sub", gpsOk ? "qalıb · canlı GPS ilə"
+      : gps ? "GPS mövqeyin seçdiyin nöqtədən uzaqdır, məsafə həmin nöqtədən hesablanır"
+      : `~${Math.max(1, Math.round(left / WALK_MS / 60))} dəq · narıncı yolu izlə`));
   const btns = el("div", "btns");
   const ok = el("button", "ok", "✓ Çatdım");
-  ok.onclick = () => doCheckIn(p, !!(gps && haversine(gps.lat, gps.lon, p.lat, p.lon) < 80));
+  ok.onclick = () => doCheckIn(p, gpsUsable(p) && haversine(gps.lat, gps.lon, p.lat, p.lon) < 80);
   const cancel = el("button", "cancel", "Ləğv et");
   cancel.onclick = endNav;
   btns.append(ok, cancel);
@@ -915,7 +925,7 @@ function onGps(pos) {
   gps = { lat: pos.coords.latitude, lon: pos.coords.longitude };
   updateMe();
   if (navPlace) {
-    if (haversine(gps.lat, gps.lon, navPlace.lat, navPlace.lon) < 40) doCheckIn(navPlace, true);
+    if (gpsUsable(navPlace) && haversine(gps.lat, gps.lon, navPlace.lat, navPlace.lon) < 40) doCheckIn(navPlace, true);
     else renderNav();
   }
 }
